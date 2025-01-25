@@ -2,10 +2,15 @@
   "name": "log-highlighter",
   "displayName": "Log Highlighter",
   "description": "A VSCode extension to highlight logs with keywords and time filters.",
-  "version": "1.0.0",
-  "publisher": "Fabrice LATRI",
+  "repository": {
+    "url": "https://github.com/fabriceLatri/LogHightlighter",
+    "type": "github"
+  },
+  "license": "MIT",
+  "version": "1.0.1",
+  "publisher": "FabriceLatri",
   "engines": {
-    "vscode": "^1.96.0"
+    "vscode": "^1.90.0"
   },
   "categories": [
     "Other"
@@ -25,45 +30,46 @@
   },
   "activationEvents": [],
   "configuration": {
-      "type": "object",
-      "title": "Log Highlighter",
-      "properties": {
-        "logHighlighter.inactiveOpacity": {
-          "type": "number",
-          "default": 0.3,
-          "minimum": 0,
-          "maximum": 1,
-          "description": "Opacity of lines that do not contain the search terms. Value between 0 (fully transparent) and 1 (fully opaque)."
-        },
-        "logHighlighter.disableHighlight": {
-          "type": "boolean",
-          "default": "false",
-          "description": "Disable highlight on the search terms."
-        },
-        "logHighlighter.highlightColor": {
-          "type": "string",
-          "default": "yellow",
-          "description": "Color used to highlight the search terms."
-        }
+    "type": "object",
+    "title": "Log Highlighter",
+    "properties": {
+      "logHighlighter.inactiveOpacity": {
+        "type": "number",
+        "default": 0.3,
+        "minimum": 0,
+        "maximum": 1,
+        "description": "Opacity of lines that do not contain the search terms. Value between 0 (fully transparent) and 1 (fully opaque)."
+      },
+      "logHighlighter.disableHighlight": {
+        "type": "boolean",
+        "default": "false",
+        "description": "Disable highlight on the search terms."
+      },
+      "logHighlighter.highlightColor": {
+        "type": "string",
+        "default": "yellow",
+        "description": "Color used to highlight the search terms."
       }
+    }
   },
   "scripts": {
-    "vscode:prepublish": "pnpm run compile",
+    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "pnpm run compile && pnpm run lint",
+    "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.96.0",
+    "@eslint-community/eslint-utils": "^4.4.1",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/vscode": "^1.90.0",
     "@typescript-eslint/eslint-plugin": "^8.17.0",
     "@typescript-eslint/parser": "^8.17.0",
-    "eslint": "^9.16.0",
-    "typescript": "^5.7.2",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1"
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.16.0",
+    "typescript": "^5.7.2"
   }
 }
