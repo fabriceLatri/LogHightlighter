@@ -2,7 +2,7 @@
   "name": "log-highlighter",
   "displayName": "Log Highlighter",
   "description": "A VSCode extension to highlight logs with keywords and time filters.",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "publisher": "Fabrice LATRI",
   "engines": {
     "vscode": "^1.96.0"
