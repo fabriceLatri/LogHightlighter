@@ -1,0 +1,69 @@
+{
+  "name": "log-highlighter",
+  "displayName": "Log Highlighter",
+  "description": "A VSCode extension to highlight logs with keywords and time filters.",
+  "version": "0.0.1",
+  "publisher": "Fabrice LATRI",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "logHighlighter.search",
+        "title": "LogHighlighter: Highlight Keywords in Log File"
+      },
+      {
+        "command": "logHighlighter.clearHighlights",
+        "title": "LogHighlighter: Clear Log Highlights"
+      }
+    ]
+  },
+  "activationEvents": [],
+  "configuration": {
+      "type": "object",
+      "title": "Log Highlighter",
+      "properties": {
+        "logHighlighter.inactiveOpacity": {
+          "type": "number",
+          "default": 0.3,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Opacity of lines that do not contain the search terms. Value between 0 (fully transparent) and 1 (fully opaque)."
+        },
+        "logHighlighter.disableHighlight": {
+          "type": "boolean",
+          "default": "false",
+          "description": "Disable highlight on the search terms."
+        },
+        "logHighlighter.highlightColor": {
+          "type": "string",
+          "default": "yellow",
+          "description": "Color used to highlight the search terms."
+        }
+      }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "pnpm run compile && pnpm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.96.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.17.0",
+    "@typescript-eslint/parser": "^8.17.0",
+    "eslint": "^9.16.0",
+    "typescript": "^5.7.2",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1"
+  }
+}
