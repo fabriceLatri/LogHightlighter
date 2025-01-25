@@ -4,6 +4,10 @@ All notable changes to the "log-highlighter" extension will be documented in thi
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [1.0.2] 2025-01-25
+
+- Fix regexp bug
+
 ## [1.0.1] 2025-01-25
 
 - Filter by regexp using /~<regexp>~/

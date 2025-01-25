@@ -60,24 +60,31 @@ function updateDecorations(searchTerm: string | undefined, timeFilter: { since?:
 	}
 
 	const document = editor.document;
-	const keywords = searchTerm ? searchTerm.split(' ').filter((kw) => kw.trim() !== '') : [];
 	const highlightRanges: vscode.Range[] = [];
 	const dimRanges: vscode.Range[] = [];
 
-	// Vérifier si un mot-clé est une regex avec le format /~<Regexp>~/
-	const regexKeywords = keywords.map((keyword) => {
-			if (keyword.startsWith('/~') && keyword.endsWith('~/')) {
-					try {
-							// Si c'est une regex, en faire un objet RegExp (enlever les /~ et ~/)
-							return new RegExp(keyword.slice(2, -2), 'gi');  // Supprimer /~ et ~/ et ajouter 'gi' pour recherche globale et insensible à la casse
-					} catch (e) {
-							vscode.window.showWarningMessage(`Invalid regular expression: ${keyword}`);
-							return null;
-					}
-			} else {
-					return keyword;
+	if (!searchTerm) return;
+
+	// Étape 1: Extraire toutes les expressions régulières (qui sont entourées par /~ et ~/)
+	const regexPattern = /\/~(.*?)~\//g;
+	const regexKeywords: RegExp[] = [];
+	let match: RegExpExecArray | null;
+	let remainingSearchTerm = searchTerm;
+
+	// Chercher et extraire toutes les expressions régulières
+	while ((match = regexPattern.exec(searchTerm)) !== null) {
+			try {
+					// Créer un RegExp à partir de l'expression extraite
+					regexKeywords.push(new RegExp(match[1], 'gi'));
+					// Supprimer l'expression régulière de la chaîne d'origine
+					remainingSearchTerm = remainingSearchTerm.replace(match[0], '');  // On remplace l'expression par un espace
+			} catch (e) {
+					vscode.window.showWarningMessage(`Invalid regular expression: ${match[1]}`);
 			}
-	}).filter(Boolean); // Supprimer les éléments non valides (comme les regex invalides)
+	}
+
+	// Étape 2: Découper les mots-clés restants en les séparant par un espace
+	const plainKeywords = remainingSearchTerm.split(' ').filter((kw) => kw.trim() !== '');
 
 	for (let line = 0; line < document.lineCount; line++) {
 			const lineText = document.lineAt(line).text;
@@ -90,31 +97,31 @@ function updateDecorations(searchTerm: string | undefined, timeFilter: { since?:
 			}
 
 			let matchFound = false;
-			regexKeywords.forEach((keyword) => {
-					if (keyword instanceof RegExp) {
-							// Si c'est une regex, on l'utilise pour chercher dans la ligne
-							const regex = keyword;
-							let match;
-							while ((match = regex.exec(lineText))) {
-									const startPos = new vscode.Position(line, match.index);
-									const endPos = new vscode.Position(line, match.index + match[0].length);
-									highlightRanges.push(new vscode.Range(startPos, endPos));
-									matchFound = true;
-							}
-					} else if (typeof keyword === 'string')  {
-							// Si ce n'est pas une regex, on fait une recherche classique
-							const regex = new RegExp(keyword, 'gi');
-							let match;
-							while ((match = regex.exec(lineText))) {
-									const startPos = new vscode.Position(line, match.index);
-									const endPos = new vscode.Position(line, match.index + match[0].length);
-									highlightRanges.push(new vscode.Range(startPos, endPos));
-									matchFound = true;
-							}
+
+			// Recherche avec des expressions régulières
+			regexKeywords.forEach((regex) => {
+					let regexMatch;
+					while ((regexMatch = regex.exec(lineText))) {
+							const startPos = new vscode.Position(line, regexMatch.index);
+							const endPos = new vscode.Position(line, regexMatch.index + regexMatch[0].length);
+							highlightRanges.push(new vscode.Range(startPos, endPos));
+							matchFound = true;
 					}
 			});
 
-			if (!matchFound && keywords.length > 0) {
+			// Recherche avec des mots-clés simples
+			plainKeywords.forEach((keyword) => {
+					const regex = new RegExp(keyword, 'gi');
+					let plainMatch;
+					while ((plainMatch = regex.exec(lineText))) {
+							const startPos = new vscode.Position(line, plainMatch.index);
+							const endPos = new vscode.Position(line, plainMatch.index + plainMatch[0].length);
+							highlightRanges.push(new vscode.Range(startPos, endPos));
+							matchFound = true;
+					}
+			});
+
+			if (!matchFound && (regexKeywords.length > 0 || plainKeywords.length > 0)) {
 					dimRanges.push(lineRange);
 			}
 	}
@@ -123,6 +130,7 @@ function updateDecorations(searchTerm: string | undefined, timeFilter: { since?:
 	editor.setDecorations(highlightDecorationType, highlightRanges);
 	editor.setDecorations(dimDecorationType, dimRanges);
 }
+
 
 	
 
