@@ -1,11 +1,15 @@
 import * as vscode from 'vscode';
 
 export function activate(context: vscode.ExtensionContext) {
-    const config = vscode.workspace.getConfiguration('logHighlighter');
-
-    let inactiveOpacity = config.get<number>('inactiveOpacity', 0.3);
-    let highlightColor = config.get<string>('highlightColor', 'yellow');
-		let isHighlightDisabled = config.get<boolean>('disableHighlight', false);
+	
+	let currentMatchIndex = 0;
+	let matches: vscode.Range[] = [];
+	
+	const config = vscode.workspace.getConfiguration('logHighlighter');
+	let inactiveOpacity = config.get<number>('inactiveOpacity', 0.3);
+	let highlightColor = config.get<string>('highlightColor', 'yellow');
+	let isHighlightDisabled = config.get<boolean>('disableHighlight', false);
+	let hideNonMatchingLines = config.get<boolean>('hideNonMatchingLines', false);
 
 		const highlightDecorationType = vscode.window.createTextEditorDecorationType({
 				backgroundColor: !isHighlightDisabled ? highlightColor : undefined,
@@ -14,6 +18,20 @@ export function activate(context: vscode.ExtensionContext) {
     const dimDecorationType = vscode.window.createTextEditorDecorationType({
         opacity: `${inactiveOpacity}`,
     });
+
+		const hiddenDecorationType = vscode.window.createTextEditorDecorationType({
+			textDecoration: 'none; opacity: 0; display: none;', // Masque le texte
+	});
+
+	const borderDecorationType = vscode.window.createTextEditorDecorationType({
+		fontWeight: 'bold',
+		borderWidth: '1px',      
+		borderStyle: 'solid',
+		...(!isHighlightDisabled ? { 
+				borderColor: highlightColor,   
+				backgroundColor: 'rgba(0, 0, 0, 1)'
+			} : {})     
+});
 
     function isLogFile(editor: vscode.TextEditor | undefined): boolean {
         if (!editor) {return false;}
@@ -29,7 +47,18 @@ export function activate(context: vscode.ExtensionContext) {
 					since: sinceMatch ? sinceMatch[1] : undefined,
 					until: untilMatch ? untilMatch[1] : undefined,
 			};
-	}	
+	}
+
+	function createDateFromTime(timeStr: string) {
+    // Suppose que timeStr est une chaîne de la forme "HH:mm:ss"
+    const today = new Date(); // Créer un objet Date avec la date actuelle
+    const [hours, minutes, seconds] = timeStr.split(":").map(Number); // Extraire les heures, minutes, secondes
+
+    // Créer un nouvel objet Date avec l'heure, les minutes et les secondes
+    today.setHours(hours, minutes, seconds, 0); // Mettre à jour l'heure, minute et seconde de la date actuelle
+
+    return today; // Retourner la date avec les heures, minutes et secondes modifiées
+}
 
 	function isInTimeRange(line: string, since?: string, until?: string): boolean {
     const timeMatch = /\b(\d{2}:\d{2}:\d{2})\b/.exec(line) || /\b(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\b/.exec(line);
@@ -45,8 +74,8 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     // Comparaison avec 'since' et 'until'
-    if (since && time < since) return false;
-    if (until && time > until) return false;
+    if (since && createDateFromTime(time) < createDateFromTime(since)) return false;
+    if (until && createDateFromTime(time) > createDateFromTime(until)) return false;
 
     return true;
 }
@@ -62,35 +91,43 @@ function updateDecorations(searchTerm: string | undefined, timeFilter: { since?:
 	const document = editor.document;
 	const highlightRanges: vscode.Range[] = [];
 	const dimRanges: vscode.Range[] = [];
+	matches = [];
 
-	if (!searchTerm) return;
+	if (!searchTerm && !timeFilter.until && !timeFilter.until) {
+		// Reinit decorators and states
+		editor.setDecorations(highlightDecorationType, []);
+		editor.setDecorations(hiddenDecorationType, []);
+		editor.setDecorations(dimDecorationType, []);
+		matches = [];
+		currentMatchIndex = 0;
+		return
+	};
 
-	// Étape 1: Extraire toutes les expressions régulières (qui sont entourées par /~ et ~/)
-	const regexPattern = /\/~(.*?)~\//g;
+	if (/^-[SU]\s?$/.test(searchTerm ?? '')) return
+
+	// Step 1: Extract all regexp
+	const regexPattern =  /\/~(.*?)~\//g;
 	const regexKeywords: RegExp[] = [];
 	let match: RegExpExecArray | null;
-	let remainingSearchTerm = searchTerm;
+	let remainingSearchTerm = searchTerm ?? '';
 
-	// Chercher et extraire toutes les expressions régulières
-	while ((match = regexPattern.exec(searchTerm)) !== null) {
+	// Search and Extract all regexp
+	while ((match = regexPattern.exec(searchTerm ?? '')) !== null) {
 			try {
-					// Créer un RegExp à partir de l'expression extraite
 					regexKeywords.push(new RegExp(match[1], 'gi'));
-					// Supprimer l'expression régulière de la chaîne d'origine
-					remainingSearchTerm = remainingSearchTerm.replace(match[0], '');  // On remplace l'expression par un espace
+					remainingSearchTerm = remainingSearchTerm.replace(match[0], '');
 			} catch (e) {
 					vscode.window.showWarningMessage(`Invalid regular expression: ${match[1]}`);
 			}
 	}
 
-	// Étape 2: Découper les mots-clés restants en les séparant par un espace
+	// Step 2: Split rest keywords
 	const plainKeywords = remainingSearchTerm.split(' ').filter((kw) => kw.trim() !== '');
 
 	for (let line = 0; line < document.lineCount; line++) {
 			const lineText = document.lineAt(line).text;
 			const lineRange = document.lineAt(line).range;
 
-			// Filtrage des lignes en fonction du temps
 			if (!isInTimeRange(lineText, timeFilter.since, timeFilter.until)) {
 					dimRanges.push(lineRange);
 					continue;
@@ -98,25 +135,27 @@ function updateDecorations(searchTerm: string | undefined, timeFilter: { since?:
 
 			let matchFound = false;
 
-			// Recherche avec des expressions régulières
 			regexKeywords.forEach((regex) => {
 					let regexMatch;
 					while ((regexMatch = regex.exec(lineText))) {
 							const startPos = new vscode.Position(line, regexMatch.index);
 							const endPos = new vscode.Position(line, regexMatch.index + regexMatch[0].length);
-							highlightRanges.push(new vscode.Range(startPos, endPos));
+							const wordFound = new vscode.Range(startPos, endPos);
+							highlightRanges.push(wordFound);
+							matches.push(wordFound);
 							matchFound = true;
 					}
 			});
 
-			// Recherche avec des mots-clés simples
 			plainKeywords.forEach((keyword) => {
 					const regex = new RegExp(keyword, 'gi');
 					let plainMatch;
 					while ((plainMatch = regex.exec(lineText))) {
 							const startPos = new vscode.Position(line, plainMatch.index);
 							const endPos = new vscode.Position(line, plainMatch.index + plainMatch[0].length);
-							highlightRanges.push(new vscode.Range(startPos, endPos));
+							const wordFound = new vscode.Range(startPos, endPos);
+							highlightRanges.push(wordFound);
+							matches.push(wordFound);
 							matchFound = true;
 					}
 			});
@@ -126,13 +165,20 @@ function updateDecorations(searchTerm: string | undefined, timeFilter: { since?:
 			}
 	}
 
-	// Appliquer les décorations (highlight et dim)
 	editor.setDecorations(highlightDecorationType, highlightRanges);
-	editor.setDecorations(dimDecorationType, dimRanges);
+	editor.setDecorations(hideNonMatchingLines ? hiddenDecorationType : dimDecorationType, dimRanges);
+
+	if (matches.length > 0) {
+		currentMatchIndex = 0;
+		goToMatch(editor, matches[currentMatchIndex]);
+	}
 }
 
-
-	
+function goToMatch(editor: vscode.TextEditor, range: vscode.Range) {
+	editor.setDecorations(borderDecorationType, [range]);
+	editor.selection = new vscode.Selection(range.start, range.end);
+	editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+}
 
     const searchCommand = vscode.commands.registerCommand('logHighlighter.search', async () => {
         const editor = vscode.window.activeTextEditor;
@@ -140,33 +186,52 @@ function updateDecorations(searchTerm: string | undefined, timeFilter: { since?:
             vscode.window.showInformationMessage('This command works only on .log files.');
             return;
         }
-const userInput = await vscode.window.showInputBox({
-            placeHolder: 'Enter keywords and/or time filters (e.g., "error -S 10:00:00 -U 12:00:00")',
-            prompt: 'Highlight logs based on keywords and/or time range',
-        });
+				const userInput = vscode.window.createInputBox()
+				userInput.placeholder = 'Enter keywords and/or time filters (e.g., "error -S 10:00:00 -U 12:00:00")';
+				userInput.prompt = 'Highlight logs based on keywords and/or time range';
+				userInput.ignoreFocusOut = true;
 
-        if (!userInput) {
-            vscode.window.showInformationMessage('No input provided.');
-            return;
-        }
+				userInput.onDidChangeValue((searchTerm) => {
+					const { since, until } = parseTimeFilter(searchTerm);
+					const keywords = searchTerm.replace(/-S\s*\d{2}:\d{2}:\d{2}/, '').replace(/-U\s*\d{2}:\d{2}:\d{2}/, '').trim();
 
-        const { since, until } = parseTimeFilter(userInput);
-        const keywords = userInput.replace(/-S\s*\d{2}:\d{2}:\d{2}/, '').replace(/-U\s*\d{2}:\d{2}:\d{2}/, '').trim();
+					updateDecorations(keywords, { since, until });
+				});
 
-        updateDecorations(keywords, { since, until });
+				userInput.onDidAccept(() => {
+					if (matches.length > 0) {
+							currentMatchIndex = (currentMatchIndex + 1) % matches.length;
+							goToMatch(editor, matches[currentMatchIndex]);
+					}
+			});
+
+				userInput.onDidHide(() => {
+					editor.setDecorations(highlightDecorationType, []);
+					editor.setDecorations(dimDecorationType, []);
+					editor.setDecorations(hiddenDecorationType, []);
+					matches = [];
+					currentMatchIndex = 0;
+			});
+
+				userInput.show();
     });
 
     const clearCommand = vscode.commands.registerCommand('logHighlighter.clearHighlights', () => {
         const editor = vscode.window.activeTextEditor;
         if (editor) {
-            editor.setDecorations(highlightDecorationType, []);
-            editor.setDecorations(dimDecorationType, []);
+					editor.setDecorations(highlightDecorationType, []);
+					editor.setDecorations(dimDecorationType, []);
+					editor.setDecorations(hiddenDecorationType, []);
+					matches = [];
+					currentMatchIndex = 0;
         }
     });
 
     vscode.workspace.onDidChangeConfiguration(() => {
         inactiveOpacity = config.get<number>('inactiveOpacity', 0.3);
         highlightColor = config.get<string>('highlightColor', 'yellow');
+				isHighlightDisabled = config.get<boolean>('disableHighlight', false);
+				hideNonMatchingLines = config.get<boolean>('hideNonMatchingLines', false);
     });
 
     context.subscriptions.push(searchCommand, clearCommand);

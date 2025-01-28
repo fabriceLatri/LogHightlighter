@@ -46,6 +46,7 @@ You can configure the following settings in your `settings.json` file to customi
 - **`logHighlighter.inactiveOpacity`**: Set the opacity for log lines outside the time range (value between 0 and 1).
 - **`logHighlighter.highlightColor`**: Set the highlight color (CSS color name or hexadecimal code).
 - **`logHighlighter.disableHighlight`**: Disable keyword highlighting.
+- **`logHighlighter.hideNonMatchingLines`**: Hide no matching lines.
 
 ### Example `settings.json`:
 
@@ -55,7 +56,8 @@ An example configuration in `settings.json` is provided to help you customize th
 {
   "logHighlighter.inactiveOpacity": 0.3,
   "logHighlighter.highlightColor": "blue",
-  "logHighlighter.disableHighlight": true
+  "logHighlighter.disableHighlight": true,
+  "logHighlighter.hideNonMatchingLines": true
 }
 ```
 
