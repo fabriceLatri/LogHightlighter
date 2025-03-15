@@ -4,7 +4,9 @@ export function activate(context: vscode.ExtensionContext) {
 	
 	let currentMatchIndex = 0;
 	let matches: vscode.Range[] = [];
-	
+	let originalContent: string | null = null;
+	let filteredContent: string | null = null;
+
 	const config = vscode.workspace.getConfiguration('logHighlighter');
 	let inactiveOpacity = config.get<number>('inactiveOpacity', 0.3);
 	let highlightColor = config.get<string>('highlightColor', 'yellow');
@@ -82,6 +84,11 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 function updateDecorations(searchTerm: string | undefined, timeFilter: { since?: string; until?: string }) {
+	if (!searchTerm) {
+		restoreOriginalContent();
+		return;
+	}
+
 	const editor = vscode.window.activeTextEditor;
 	if (!editor || !isLogFile(editor)) {
 			vscode.window.showInformationMessage('This command works only on .log files.');
@@ -89,90 +96,126 @@ function updateDecorations(searchTerm: string | undefined, timeFilter: { since?:
 	}
 
 	const document = editor.document;
-	const highlightRanges: vscode.Range[] = [];
-	const dimRanges: vscode.Range[] = [];
-	matches = [];
 
-	if (!searchTerm && !timeFilter.until && !timeFilter.until) {
-		// Reinit decorators and states
-		editor.setDecorations(highlightDecorationType, []);
-		editor.setDecorations(hiddenDecorationType, []);
-		editor.setDecorations(dimDecorationType, []);
-		matches = [];
-		currentMatchIndex = 0;
-		return
-	};
-
-	if (/^-[SU]\s?$/.test(searchTerm ?? '')) return
-
-	// Step 1: Extract all regexp
-	const regexPattern =  /\/~(.*?)~\//g;
-	const regexKeywords: RegExp[] = [];
-	let match: RegExpExecArray | null;
-	let remainingSearchTerm = searchTerm ?? '';
-
-	// Search and Extract all regexp
-	while ((match = regexPattern.exec(searchTerm ?? '')) !== null) {
-			try {
-					regexKeywords.push(new RegExp(match[1], 'gi'));
-					remainingSearchTerm = remainingSearchTerm.replace(match[0], '');
-			} catch (e) {
-					vscode.window.showWarningMessage(`Invalid regular expression: ${match[1]}`);
-			}
+	if (!originalContent) {
+		originalContent = document.getText();
 	}
 
-	// Step 2: Split rest keywords
-	const plainKeywords = remainingSearchTerm.split(' ').filter((kw) => kw.trim() !== '');
+	const lines = originalContent.split('\n');
+		const filteredLines = lines.filter(line => line.includes(searchTerm));
+		filteredContent = filteredLines.join('\n');
 
-	for (let line = 0; line < document.lineCount; line++) {
-			const lineText = document.lineAt(line).text;
-			const lineRange = document.lineAt(line).range;
 
-			if (!isInTimeRange(lineText, timeFilter.since, timeFilter.until)) {
-					dimRanges.push(lineRange);
-					continue;
-			}
+		replaceEditorContent(filteredContent);
 
-			let matchFound = false;
 
-			regexKeywords.forEach((regex) => {
-					let regexMatch;
-					while ((regexMatch = regex.exec(lineText))) {
-							const startPos = new vscode.Position(line, regexMatch.index);
-							const endPos = new vscode.Position(line, regexMatch.index + regexMatch[0].length);
-							const wordFound = new vscode.Range(startPos, endPos);
-							highlightRanges.push(wordFound);
-							matches.push(wordFound);
-							matchFound = true;
-					}
-			});
+	// const highlightRanges: vscode.Range[] = [];
+	// const dimRanges: vscode.Range[] = [];
+	// matches = [];
 
-			plainKeywords.forEach((keyword) => {
-					const regex = new RegExp(keyword, 'gi');
-					let plainMatch;
-					while ((plainMatch = regex.exec(lineText))) {
-							const startPos = new vscode.Position(line, plainMatch.index);
-							const endPos = new vscode.Position(line, plainMatch.index + plainMatch[0].length);
-							const wordFound = new vscode.Range(startPos, endPos);
-							highlightRanges.push(wordFound);
-							matches.push(wordFound);
-							matchFound = true;
-					}
-			});
+	// if (!searchTerm && !timeFilter.until && !timeFilter.until) {
+	// 	// Reinit decorators and states
+	// 	editor.setDecorations(highlightDecorationType, []);
+	// 	editor.setDecorations(hiddenDecorationType, []);
+	// 	editor.setDecorations(dimDecorationType, []);
+	// 	matches = [];
+	// 	currentMatchIndex = 0;
+	// 	return
+	// };
 
-			if (!matchFound && (regexKeywords.length > 0 || plainKeywords.length > 0)) {
-					dimRanges.push(lineRange);
-			}
-	}
+	// // TODO: Modify next line to allow -S ans -U everywhere in search term.
+	// if (/^-[SU]\s?$/.test(searchTerm ?? '')) return
 
-	editor.setDecorations(highlightDecorationType, highlightRanges);
-	editor.setDecorations(hideNonMatchingLines ? hiddenDecorationType : dimDecorationType, dimRanges);
+	// // Step 1: Extract all regexp
+	// const regexPattern =  /\/~(.*?)~\//g;
+	// const regexKeywords: RegExp[] = [];
+	// let match: RegExpExecArray | null;
+	// let remainingSearchTerm = searchTerm ?? '';
 
-	if (matches.length > 0) {
-		currentMatchIndex = 0;
-		goToMatch(editor, matches[currentMatchIndex]);
+	// // Search and Extract all regexp
+	// while ((match = regexPattern.exec(searchTerm ?? '')) !== null) {
+	// 		try {
+	// 				regexKeywords.push(new RegExp(match[1], 'gi'));
+	// 				remainingSearchTerm = remainingSearchTerm.replace(match[0], '');
+	// 		} catch (e) {
+	// 				vscode.window.showWarningMessage(`Invalid regular expression: ${match[1]}`);
+	// 		}
+	// }
+
+	// // Step 2: Split rest keywords
+	// const plainKeywords = remainingSearchTerm.split(' ').filter((kw) => kw.trim() !== '');
+
+	// for (let line = 0; line < document.lineCount; line++) {
+	// 		const lineText = document.lineAt(line).text;
+	// 		const lineRange = document.lineAt(line).range;
+
+	// 		if (!isInTimeRange(lineText, timeFilter.since, timeFilter.until)) {
+	// 				dimRanges.push(lineRange);
+	// 				continue;
+	// 		}
+
+	// 		let matchFound = false;
+
+	// 		regexKeywords.forEach((regex) => {
+	// 				let regexMatch;
+	// 				while ((regexMatch = regex.exec(lineText))) {
+	// 						const startPos = new vscode.Position(line, regexMatch.index);
+	// 						const endPos = new vscode.Position(line, regexMatch.index + regexMatch[0].length);
+	// 						const wordFound = new vscode.Range(startPos, endPos);
+	// 						highlightRanges.push(wordFound);
+	// 						matches.push(wordFound);
+	// 						matchFound = true;
+	// 				}
+	// 		});
+
+	// 		plainKeywords.forEach((keyword) => {
+	// 				const regex = new RegExp(keyword, 'gi');
+	// 				let plainMatch;
+	// 				while ((plainMatch = regex.exec(lineText))) {
+	// 						const startPos = new vscode.Position(line, plainMatch.index);
+	// 						const endPos = new vscode.Position(line, plainMatch.index + plainMatch[0].length);
+	// 						const wordFound = new vscode.Range(startPos, endPos);
+	// 						highlightRanges.push(wordFound);
+	// 						matches.push(wordFound);
+	// 						matchFound = true;
+	// 				}
+	// 		});
+
+	// 		if (!matchFound && (regexKeywords.length > 0 || plainKeywords.length > 0)) {
+	// 				dimRanges.push(lineRange);
+	// 		}
+	// }
+
+	// editor.setDecorations(highlightDecorationType, highlightRanges);
+	// editor.setDecorations(hideNonMatchingLines ? hiddenDecorationType : dimDecorationType, dimRanges);
+
+	// if (matches.length > 0) {
+	// 	currentMatchIndex = 0;
+	// 	goToMatch(editor, matches[currentMatchIndex]);
+	// }
+}
+
+function replaceEditorContent(content: string) {
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) return;
+
+	const edit = new vscode.WorkspaceEdit();
+	const fullRange = new vscode.Range(
+		editor.document.positionAt(0),
+		editor.document.positionAt(editor.document.getText().length)
+	);
+	edit.replace(editor.document.uri, fullRange, content);
+	vscode.workspace.applyEdit(edit);
+}
+
+function restoreOriginalContent() {
+	if (originalContent) {
+		replaceEditorContent(originalContent);
+		originalContent = null;
+		filteredContent = null;
 	}
 }
+
 
 function goToMatch(editor: vscode.TextEditor, range: vscode.Range) {
 	editor.setDecorations(borderDecorationType, [range]);
