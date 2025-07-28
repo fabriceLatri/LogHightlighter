@@ -1,5 +1,5 @@
 {
-  "name": "log-highlighter",
+  "name": "loghighlighter",
   "displayName": "Log Highlighter",
   "description": "A VSCode extension to highlight logs with keywords and time filters.",
   "repository": {
@@ -23,35 +23,40 @@
         "title": "LogHighlighter: Highlight Keywords in Log File"
       },
       {
-        "command": "logHighlighter.clearHighlights",
-        "title": "LogHighlighter: Clear Log Highlights"
+        "command": "logHighlighter.restore",
+        "title": "LogHighlighter: Restore log file"
       }
-    ]
-  },
-  "activationEvents": [],
-  "configuration": {
-    "type": "object",
-    "title": "Log Highlighter",
-    "properties": {
-      "logHighlighter.inactiveOpacity": {
-        "type": "number",
-        "default": 0.3,
-        "minimum": 0,
-        "maximum": 1,
-        "description": "Opacity of lines that do not contain the search terms. Value between 0 (fully transparent) and 1 (fully opaque)."
-      },
-      "logHighlighter.disableHighlight": {
-        "type": "boolean",
-        "default": "false",
-        "description": "Disable highlight on the search terms."
-      },
-      "logHighlighter.highlightColor": {
-        "type": "string",
-        "default": "yellow",
-        "description": "Color used to highlight the search terms."
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "%logHighlighter.Configuration%",
+      "properties": {
+        "logHighlighter.inactiveOpacity": {
+          "type": "number",
+          "default": 0.3,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Opacity of lines that do not contain the search terms. Value between 0 (fully transparent) and 1 (fully opaque)."
+        },
+        "logHighlighter.disableHighlight": {
+          "type": "boolean",
+          "default": "false",
+          "description": "Disable highlight on the search terms."
+        },
+        "logHighlighter.highlightColor": {
+          "type": "string",
+          "default": "yellow",
+          "description": "Color used to highlight the search terms."
+        },
+        "logHighlighter.removeUnmatchedLines": {
+          "type": "boolean",
+          "default": "true",
+          "description": "Remove unmatched lines"
+        }
       }
     }
   },
+  "activationEvents": [],
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
@@ -61,20 +66,20 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@eslint/js": "^9.19.0",
-    "@stylistic/eslint-plugin": "^3.0.1",
-    "@types/glob": "^8.1.0",
+    "@eslint/js": "^9.26.0",
+    "@stylistic/eslint-plugin": "^4.2.0",
+    "@types/glob": "^9.0.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
-    "@types/vscode": "^1.90.0",
-    "@typescript-eslint/eslint-plugin": "^8.17.0",
-    "@typescript-eslint/parser": "^8.17.0",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.99.1",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1",
-    "eslint": "^9.16.0",
-    "glob": "^11.0.1",
-    "mocha": "^11.1.0",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.26.0",
+    "glob": "^11.0.3",
+    "mocha": "^11.2.2",
     "source-map-support": "^0.5.21",
-    "typescript": "^5.7.2"
+    "typescript": "^5.8.3"
   }
 }
